@@ -188,8 +188,6 @@ export default function App() {
     }
   };
 
-  // Ordenar las subredes por la cantidad de hosts solicitados de mayor a menor
-
   function ordenarSubredes() {
     var subredes = datos.subredes;
     subredes.sort(function (a, b) {
@@ -201,14 +199,29 @@ export default function App() {
     });
   }
 
-  function calcularSubneteo() {
-    ordenarSubredes();
+  // Validar si la red soporta la cantidad de hosts solicitados
+  function validarRedConHosts() {
+    var subredes = datos.subredes;
+    var hosts_solicitados = 0;
+    for (let index = 0; index < subredes.length; index++) {
+      hosts_solicitados += subredes[index].hosts_solicitados;
+    }
+    if (hosts_solicitados > Math.pow(2, 32 - datos.prefijo)) {
+      seterror({
+        ...error,
+        subredes: {
+          error: true,
+          mensaje: 'La cantidad de hosts solicitados supera la capacidad de la red'
+        }
+      });
+      return false;
+    }
+    return true;
   }
 
-
   const handleCalcular = () => {
-    if (validar()) {
-      calcularSubneteo();
+    if (validar() && validarRedConHosts()) {
+      ordenarSubredes();
       setCalculadoFinal(true);
     } else {
       mostrarErrorDialogo(true);
@@ -320,7 +333,7 @@ export default function App() {
               variant="contained"
               color="info"
               size="large"
-              style={{ width: '20%', marginTop: '20px' }}
+              style={{ width: '35%', marginTop: '20px' }}
               onClick={handleContinuar}
             >Continuar </Button>
           </Grid>
@@ -340,7 +353,7 @@ export default function App() {
                       <TableHead>
                         <TableRow>
                           <TableCell>Subred</TableCell>
-                          <TableCell align="right">Número de hosts</TableCell>
+                          <TableCell align="center">Número de hosts</TableCell>
                         </TableRow>
                       </TableHead>
                       <TableBody>
@@ -358,7 +371,7 @@ export default function App() {
                                   onChange={handleChangeSubredNombre}
                                 />
                               </TableCell>
-                              <TableCell align="right">
+                              <TableCell align="center">
                                 <TextField
                                   id={index}
                                   name={`subred_${index}`}
@@ -385,7 +398,7 @@ export default function App() {
                       variant="contained"
                       color="success"
                       size="large"
-                      style={{ width: '20%', marginTop: '20px' }}
+                      style={{ width: '35%', marginTop: '20px' }}
                       onClick={handleCalcular}
                     >Calcular</Button>
                   </Grid>
@@ -410,38 +423,48 @@ export default function App() {
                     <Table aria-label="simple table">
                       <TableHead>
                         <TableRow>
-                          <TableCell>Subred</TableCell>
-                          <TableCell align="right">Número de hosts</TableCell>
-                          <TableCell align="right">Primer host</TableCell>
-                          <TableCell align="right">Último host</TableCell>
-                          <TableCell align="right">Máscara</TableCell>
-                          <TableCell align="right">Dirección de red</TableCell>
-                          <TableCell align="right">Broadcast</TableCell>
+                          <TableCell align="center">Subred</TableCell>
+                          <TableCell align="center">Hosts solicitados</TableCell>
+                          <TableCell align="center">Hosts asignados</TableCell>
+                          <TableCell align="center">Hosts disponibles</TableCell>
+                          <TableCell align="center">Dirección de red</TableCell>
+                          <TableCell align="center">Primer host</TableCell>
+                          <TableCell align="center">Último host</TableCell>
+                          <TableCell align="center">Máscara</TableCell>
+                          <TableCell align="center">Broadcast</TableCell>
+                          <TableCell align="center">Wildcard</TableCell>
                         </TableRow>
                       </TableHead>
                       <TableBody>
                         {
                           datos.subredes.map((subred, index) => (
                             <TableRow key={index}>
-                              <TableCell component="th" scope="row">
+                              <TableCell component="th" scope="row" align="center">
                                 {subred.nombre}
                               </TableCell>
-                              <TableCell align="right">
+                              <TableCell align="center">
                                 {subred.hosts_solicitados}
                               </TableCell>
-                              <TableCell align="right">
-                                {subred.direcciones.primera_ip}
+                              <TableCell align="center">
+                                {subred.hosts_disponibles}
                               </TableCell>
-                              <TableCell align="right">
-                                {subred.direcciones.ultima_ip}
+                              <TableCell align="center">
+                                {subred.hosts_libres}
                               </TableCell>
-                              <TableCell align="right">
-                                {subred.direcciones.mascara}
-                              </TableCell>
-                              <TableCell align="right">
+                              <TableCell align="center">
                                 {subred.direcciones.direccion_red}
                               </TableCell>
-                              <TableCell align="right">
+                              <TableCell align="center">
+                                {subred.direcciones.primera_ip}
+                              </TableCell>
+                              <TableCell align="center">
+                                {subred.direcciones.ultima_ip}
+                              </TableCell>
+                              <TableCell align="center">
+                                {subred.direcciones.mascara}
+                              </TableCell>
+
+                              <TableCell align="center">
                                 {subred.direcciones.broadcast}
                               </TableCell>
                             </TableRow>
