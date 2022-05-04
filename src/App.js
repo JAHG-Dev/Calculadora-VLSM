@@ -1,4 +1,4 @@
-import { Button, Container, Typography, Card, TextField, form, Grid, InputAdornment, Select, InputLabel, MenuItem, FormControl, Modal } from '@mui/material';
+import { Button, Container, Typography, Card, TextField, form, Grid, InputAdornment, Select, InputLabel, MenuItem, FormControl, Modal, TableContainer, Paper, Table, TableHead, TableBody, TableRow, TableCell } from '@mui/material';
 import { Box } from '@mui/system';
 import { useState, useContext, useEffect } from 'react';
 
@@ -19,31 +19,98 @@ export default function App() {
 
   const [calculado, iscalculado] = useState(false);
 
-  const [informacion, setInformacion] = useState({
-    ip: '',
-    direccion_red: '',
-    mascara: '',
-    broadcast: '',
-  });
+  const [calculadoFinal, setCalculadoFinal] = useState(false);
 
   var [datos, setdatos] = useState({
-    ip: '',
-    prefijo: '',
-    subredes: ''
+    ip: '192.168.1.0',
+    prefijo: '24',
+    subredes_cantidad: 1,
+    subredes: [
+      {
+        id: 1,
+        nombre: 'S1',
+        hosts_solicitados: 1,
+        hosts_disponibles: 0,
+        hosts_libres: 0,
+        direcciones: {
+          direccion_red: '',
+          prefijo: '',
+          mascara: '',
+          broadcast: '',
+          primera_ip: '',
+          ultima_ip: '',
+          wildcard: ''
+        }
+      }
+    ]
   });
 
   var [ErrorDialogo, mostrarErrorDialogo] = useState(false);
 
   var [error, seterror] = useState({
-    ip: false,
-    prefijo: false,
-    subredes: false
+    ip: {
+      error: false,
+      mensaje: 'La IP es correcta'
+    },
+    prefijo: {
+      error: false,
+      mensaje: 'El prefijo es correcto'
+    },
+    subredes: {
+      error: false,
+      mensaje: 'La cantidad de subredes es correcta'
+    }
   });
 
   const handleChange = (event) => {
+    if (event.target.name === 'subredes_cantidad') {
+      var subredes = [];
+      for (let index = 0; index < event.target.value; index++) {
+        subredes.push({
+          id: index + 1,
+          nombre: 'S' + (index + 1),
+          hosts_solicitados: 1,
+          hosts_disponibles: 0,
+          hosts_libres: 0,
+          direcciones: {
+            direccion_red: '',
+            prefijo: '',
+            mascara: '',
+            broadcast: '',
+            primera_ip: '',
+            ultima_ip: '',
+            wildcard: ''
+          }
+        });
+      }
+      setdatos({
+        ...datos,
+        subredes_cantidad: event.target.value,
+        subredes: subredes
+      });
+    } else {
+      setdatos({
+        ...datos,
+        [event.target.name]: event.target.value
+      });
+    }
+  };
+
+  const handleChangeSubredNombre = (event) => {
+    var subredes = datos.subredes;
+    subredes[event.target.id].nombre = event.target.value;
     setdatos({
       ...datos,
-      [event.target.name]: event.target.value
+      subredes: subredes
+    });
+  };
+
+  const handleChangeSubredHostsSolicitados = (event) => {
+    var subredes = datos.subredes;
+    subredes[event.target.id].hosts_solicitados = event.target.value;
+    setdatos({
+      ...datos,
+      subredes: subredes
     });
   };
 
@@ -52,7 +119,12 @@ export default function App() {
     if (ip.length !== 4) {
       seterror({
         ...error,
-        ip: true
+        ip: [
+          {
+            error: true,
+            mensaje: 'La IP debe tener 4 octetos'
+          }
+        ]
       });
       return false;
     }
@@ -60,7 +132,10 @@ export default function App() {
       if (ip[i] < 0 || ip[i] > 255 || isNaN(ip[i])) {
         seterror({
           ...error,
-          ip: true
+          ip: {
+            error: true,
+            mensaje: 'El octeto ' + (i + 1) + ' debe ser un número entre 0 y 255'
+          }
         });
         return false;
       }
@@ -69,10 +144,13 @@ export default function App() {
   }
 
   function validarPrefijo() {
-    if (datos.prefijo < 0 || datos.prefijo > 32 || isNaN(datos.prefijo)) {
+    if (datos.prefijo < 1 || datos.prefijo > 32 || isNaN(datos.prefijo)) {
       seterror({
         ...error,
-        prefijo: true
+        prefijo: {
+          error: true,
+          mensaje: 'El prefijo debe estar entre 1 y 32'
+        }
       });
       return false;
     }
@@ -80,10 +158,14 @@ export default function App() {
   }
 
   function validarSubredes() {
-    if (datos.subredes < 0 || datos.subredes > 32 || isNaN(datos.subredes)) {
+    if (datos.subredes_cantidad < 1 || datos.subredes_cantidad > 32 || isNaN(datos.subredes_cantidad)) {
       seterror({
         ...error,
-        subredes: true
+        subredes:
+        {
+          error: true,
+          mensaje: 'La cantidad de subredes debe estar entre 1 y 32'
+        }
       });
       return false;
     }
@@ -91,74 +173,47 @@ export default function App() {
   }
 
   function validar() {
-    if (!validarIP()) {
+    if (!validarIP() || !validarPrefijo() || !validarSubredes()) {
       return false;
+    } else {
+      return true;
     }
-    if (!validarPrefijo()) {
-      return false;
-    }
-    if (!validarSubredes()) {
-      return false;
-    }
-    return true;
   }
 
-  function calcularMascara() {
-    var mascara = '';
-
-    for (var i = 0; i < datos.prefijo; i++) {
-      mascara += '1';
-    }
-
-    for (var i = datos.prefijo; i < 32; i++) {
-      mascara += '0';
-    }
-
-    mascara = mascara.match(/.{1,8}/g).join('.');
-
-    var octetos = [
-      mascara.split('.')[0],
-      mascara.split('.')[1],
-      mascara.split('.')[2],
-      mascara.split('.')[3]
-    ]
-
-    octetos.map((octeto, index) => {
-      octeto = parseInt(octeto, 2);
-    });
-    alert(octetos);
-
-
-    return mascara;
-  }
-
-  function calcularBroadcast() {
-    var ip = datos.ip.split('.');
-    var mascara = calcularMascara();
-    var broadcast = '';
-    for (var i = 0; i < ip.length; i++) {
-      broadcast += parseInt(ip[i], 10) | parseInt(mascara[i], 10);
-      if (i < ip.length - 1) {
-        broadcast += '.';
-      }
-    }
-    return broadcast;
-  }
-
-  function handlecalcular() {
+  const handleContinuar = () => {
     if (validar()) {
       iscalculado(true);
-      setInformacion({
-        ip: datos.ip,
-        direccion_red: datos.ip + '/' + datos.prefijo,
-        mascara: calcularMascara(),
-        broadcast: calcularBroadcast()
-    });
     } else {
       mostrarErrorDialogo(true);
     }
+  };
+
+  // Ordenar las subredes por la cantidad de hosts solicitados de mayor a menor
+
+  function ordenarSubredes() {
+    var subredes = datos.subredes;
+    subredes.sort(function (a, b) {
+      return b.hosts_solicitados - a.hosts_solicitados;
+    });
+    setdatos({
+      ...datos,
+      subredes: subredes
+    });
   }
 
+  function calcularSubneteo() {
+    ordenarSubredes();
+  }
+
+
+  const handleCalcular = () => {
+    if (validar()) {
+      calcularSubneteo();
+      setCalculadoFinal(true);
+    } else {
+      mostrarErrorDialogo(true);
+    }
+  };
 
   return (
     <>
@@ -182,7 +237,13 @@ export default function App() {
                 variant="outlined"
                 style={{ width: '100%' }}
                 helperText='Ejemplo: 192.168.0.0'
-                onChange={handleChange} />
+                onChange={handleChange}
+                value={datos.ip}
+
+                inputProps={{
+                  maxLength: 15
+                }}
+              />
             </Grid>
 
             <Grid item xs={3}>
@@ -196,6 +257,7 @@ export default function App() {
                   variant="outlined"
                   style={{ width: '100%' }}
                   onChange={handleChange}
+                  value={datos.prefijo}
                 >
                   <MenuItem value={1}>1</MenuItem>
                   <MenuItem value={2}>2</MenuItem>
@@ -235,8 +297,8 @@ export default function App() {
 
             <Grid item xs={3}>
               <TextField
-                id="subredes"
-                name="subredes"
+                id="subredes_cantidad"
+                name="subredes_cantidad"
                 label="Número de subredes"
                 variant="outlined"
                 width="100%"
@@ -244,10 +306,12 @@ export default function App() {
                 style={{ width: '100%' }}
                 inputProps={{
                   min: 1,
-                  max: 32
+                  max: 32,
                 }}
                 helperText='Ejemplo: 6'
-                onChange={handleChange} />
+                value={datos.subredes_cantidad}
+                onChange={handleChange}
+              />
             </Grid>
           </Grid>
 
@@ -257,28 +321,143 @@ export default function App() {
               color="info"
               size="large"
               style={{ width: '20%', marginTop: '20px' }}
-              onClick={handlecalcular}
-            >Calcular </Button>
+              onClick={handleContinuar}
+            >Continuar </Button>
           </Grid>
         </Card>
+        {
+          calculado &&
+          <>
+            <Card style={{ padding: '20px', marginTop: '20px' }} alignItems="center" justifyContent="center">
+              <Typography variant="h2" gutterBottom align="center" color="primary" style={{ marginBottom: '20px', fontSize: '30px' }}>
+                Subredes
+              </Typography>
 
-        {calculado &&
-          <Card style={{ padding: '20px', marginTop: '20px' }} alignItems="center" justifyContent="center">
-            <Typography variant="h2" gutterBottom align="center" color="primary" style={{ marginBottom: '20px', fontSize: '30px' }}>
-              Información
-            </Typography>
+              <Grid container spacing={3} style={{ marginBottom: '20px' }}>
+                <Grid item xs={12}>
+                  <TableContainer component={Paper}>
+                    <Table aria-label="simple table">
+                      <TableHead>
+                        <TableRow>
+                          <TableCell>Subred</TableCell>
+                          <TableCell align="right">Número de hosts</TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {
+                          datos.subredes.map((subred, index) => (
+                            <TableRow key={index}>
+                              <TableCell component="th" scope="row">
+                                <TextField
+                                  id={index}
+                                  name={`subred_${index}`}
+                                  label="Nombre de la subred"
+                                  variant="outlined"
+                                  style={{ width: '100%' }}
+                                  value={subred.nombre}
+                                  onChange={handleChangeSubredNombre}
+                                />
+                              </TableCell>
+                              <TableCell align="right">
+                                <TextField
+                                  id={index}
+                                  name={`subred_${index}`}
+                                  label="Número de hosts"
+                                  variant="outlined"
+                                  style={{ width: '100%' }}
+                                  value={subred.hosts_solicitados}
+                                  type="number"
+                                  inputProps={{
+                                    min: 1
+                                  }}
+                                  onChange={handleChangeSubredHostsSolicitados}
+                                />
+                              </TableCell>
+                            </TableRow>
+                          ))
+                        }
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
 
-            <Grid container spacing={3} style={{ marginBottom: '20px' }}>
-              <Grid item xs={6}>
-                <Typography variant="h6" gutterBottom align="left" color="primary" style={{ marginBottom: '20px', fontSize: '18px' }}> Dirección IP: {informacion.ip}</Typography>
-                <Typography variant="h6" gutterBottom align="left" color="primary" style={{ marginBottom: '20px', fontSize: '18px' }}> Dirección de red: {informacion.direccion_red}</Typography>
-                <Typography variant="h6" gutterBottom align="left" color="primary" style={{ marginBottom: '20px', fontSize: '18px' }}> Máscara de red: {informacion.mascara}</Typography>
-                <Typography variant="h6" gutterBottom align="left" color="primary" style={{ marginBottom: '20px', fontSize: '18px' }}> Broadcast: {informacion.broadcast}</Typography>
+                  <Grid container justifyContent={'center'} alignItems={'center'}>
+                    <Button
+                      variant="contained"
+                      color="success"
+                      size="large"
+                      style={{ width: '20%', marginTop: '20px' }}
+                      onClick={handleCalcular}
+                    >Calcular</Button>
+                  </Grid>
+
+                </Grid>
               </Grid>
-            </Grid>
-          </Card>}
+            </Card>
+          </>
+        }
+
+        {
+          calculadoFinal &&
+          <>
+            <Card style={{ padding: '20px', marginTop: '20px' }} alignItems="center" justifyContent="center">
+              <Typography variant="h2" gutterBottom align="center" color="primary" style={{ marginBottom: '20px', fontSize: '30px' }}>
+                Subneteo final
+              </Typography>
+
+              <Grid container spacing={3} style={{ marginBottom: '20px' }}>
+                <Grid item xs={12}>
+                  <TableContainer component={Paper}>
+                    <Table aria-label="simple table">
+                      <TableHead>
+                        <TableRow>
+                          <TableCell>Subred</TableCell>
+                          <TableCell align="right">Número de hosts</TableCell>
+                          <TableCell align="right">Primer host</TableCell>
+                          <TableCell align="right">Último host</TableCell>
+                          <TableCell align="right">Máscara</TableCell>
+                          <TableCell align="right">Dirección de red</TableCell>
+                          <TableCell align="right">Broadcast</TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {
+                          datos.subredes.map((subred, index) => (
+                            <TableRow key={index}>
+                              <TableCell component="th" scope="row">
+                                {subred.nombre}
+                              </TableCell>
+                              <TableCell align="right">
+                                {subred.hosts_solicitados}
+                              </TableCell>
+                              <TableCell align="right">
+                                {subred.direcciones.primera_ip}
+                              </TableCell>
+                              <TableCell align="right">
+                                {subred.direcciones.ultima_ip}
+                              </TableCell>
+                              <TableCell align="right">
+                                {subred.direcciones.mascara}
+                              </TableCell>
+                              <TableCell align="right">
+                                {subred.direcciones.direccion_red}
+                              </TableCell>
+                              <TableCell align="right">
+                                {subred.direcciones.broadcast}
+                              </TableCell>
+                            </TableRow>
+                          ))
+                        }
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                </Grid>
+              </Grid>
+            </Card>
+          </>
+        }
+
       </Container>
-      
+
       <Modal
         open={ErrorDialogo}
         onClose={
@@ -289,28 +468,33 @@ export default function App() {
         aria-labelledby="modal-modal-title"
         aria-describedby="modal-modal-description"
       >
-          <Box sx={style}>
-            <Typography id="modal-modal-title" variant="h6" component="h2">
-              Error en los datos
-            </Typography>
-            <Typography id="modal-modal-description" sx={{ mt: 2 }}>
-              Por favor, verifique que los datos ingresados sean correctos:
-              {
-                error.ip &&
-                  <Typography variant="h6" gutterBottom align="left" color="error" style={{ marginBottom: '20px', fontSize: '16px' }}> - Dirección IP: {datos.ip} (Inválida)</Typography>
-              }
+        <Box sx={style}>
+          <Typography id="modal-modal-title" variant="h6" component="h2">
+            Error en los datos
+          </Typography>
+          <Typography id="modal-modal-description" sx={{ mt: 2 }}>
+            Por favor, verifique que los datos ingresados sean correctos:
+            {
+              error.ip.error &&
+              <>
+                <Typography variant="h6" gutterBottom align="left" color="error" style={{ marginBottom: '20px', fontSize: '16px' }}> - Dirección IP: {datos.ip} ({error.ip.mensaje})</Typography>
+              </>
+            }
+            {
+              error.prefijo.error &&
+              <>
+                <Typography variant="h6" gutterBottom align="left" color="error" style={{ marginBottom: '20px', fontSize: '16px' }}> - Prefijo de red: {datos.prefijo} ({error.prefijo.mensaje})</Typography>
+              </>
+            }
+            {
+              error.subredes.error &&
+              <>
+                <Typography variant="h6" gutterBottom align="left" color="error" style={{ marginBottom: '20px', fontSize: '16px' }}> - Número de subredes: {datos.subredes_cantidad} ({error.subredes.mensaje})</Typography>
+              </>
+            }
 
-              {
-                error.prefijo &&
-                  <Typography variant="h6" gutterBottom align="left" color="error" style={{ marginBottom: '20px', fontSize: '16px' }}> - Prefijo de red: {datos.prefijo} </Typography>
-              }
-
-              {
-                error.redes &&
-                  <Typography variant="h6" gutterBottom align="left" color="error" style={{ marginBottom: '20px', fontSize: '16px' }}> - Número de redes: {datos.redes} </Typography>
-              }
-            </Typography>
-          </Box>
+          </Typography>
+        </Box>
       </Modal>
     </>
   );
