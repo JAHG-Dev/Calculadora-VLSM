@@ -23,15 +23,20 @@ export default function App() {
 
   var [datos, setdatos] = useState({
     ip: '192.168.1.0',
+    direccion_red: '192.168.0.0',
     prefijo: '24',
     subredes_cantidad: 1,
+    salto_actual: 0,
     subredes: [
       {
         id: 1,
         nombre: 'S1',
-        hosts_solicitados: 1,
+        hosts_solicitados: 0,
+        hosts_reservados: 0,
         hosts_disponibles: 0,
-        hosts_libres: 0,
+        bits_host: 0,
+        bits_subred: 0,
+        salto: 0,
         direcciones: {
           direccion_red: '',
           prefijo: '',
@@ -70,8 +75,11 @@ export default function App() {
           id: index + 1,
           nombre: 'S' + (index + 1),
           hosts_solicitados: 1,
+          hosts_reservados: 0,
           hosts_disponibles: 0,
-          hosts_libres: 0,
+          bits_host: 0,
+          bits_subred: 0,
+          salto: 0,
           direcciones: {
             direccion_red: '',
             prefijo: '',
@@ -199,30 +207,202 @@ export default function App() {
     });
   }
 
-  // Validar si la red soporta la cantidad de hosts solicitados
-  function validarRedConHosts() {
-    var subredes = datos.subredes;
-    var hosts_solicitados = 0;
-    for (let index = 0; index < subredes.length; index++) {
-      hosts_solicitados += subredes[index].hosts_solicitados;
+  function calcularBitsHost(hosts) {
+
+    for (var index = 0; index <= 32; index++) {
+      if (hosts <= Math.pow(2, index) - 2) {
+        return index;
+      }
     }
-    if (hosts_solicitados > Math.pow(2, 32 - datos.prefijo)) {
-      seterror({
-        ...error,
-        subredes: {
-          error: true,
-          mensaje: 'La cantidad de hosts solicitados supera la capacidad de la red'
-        }
-      });
-      return false;
-    }
-    return true;
+    return 0;
   }
 
+  function convertirPrefijoAMascaraDecimal(prefijo) {
+    var mascara = '';
+    for (var index = 0; index < prefijo; index++) {
+      mascara += '1';
+    }
+    for (index = 0; index < 32 - prefijo; index++) {
+      mascara += '0';
+    }
+
+    var mascara_octetos = mascara.match(/.{1,8}/g);
+
+    var mascara_decimal = '';
+
+    for (index = 0; index < mascara_octetos.length; index++) {
+      mascara_decimal += parseInt(mascara_octetos[index], 2);
+      if (index < mascara_octetos.length - 1) {
+        mascara_decimal += '.';
+      }
+    }
+
+    return mascara_decimal;
+  }
+
+  function calcularSalto(mascara) {
+    var mascara_octetos = mascara.split('.');
+
+    var ultimo_octeto = 0;
+    for (var index = 0; index < mascara_octetos.length; index++) {
+      if (mascara_octetos[index] !== '0') {
+        ultimo_octeto = index;
+      }
+    }
+
+    var salto = 256 - parseInt(mascara_octetos[ultimo_octeto], 10);
+
+    datos.salto_actual += salto;
+    return salto;
+  }
+
+  function calcularDireccionDeRed() {
+    var direccion_ip = datos.ip.split('.');
+
+    // Convertir primer octeto a binario y añadir ceros a la izquierda hasta que sea de 8 bits
+    var primer_octeto = parseInt(direccion_ip[0], 10).toString(2);
+    while (primer_octeto.length < 8) {
+      primer_octeto = '0' + primer_octeto;
+    }
+
+    // Convertir segundo octeto a binario y añadir ceros a la izquierda hasta que sea de 8 bits
+    var segundo_octeto = parseInt(direccion_ip[1], 10).toString(2);
+    while (segundo_octeto.length < 8) {
+      segundo_octeto = '0' + segundo_octeto;
+    }
+
+    // Convertir tercer octeto a binario y añadir ceros a la izquierda hasta que sea de 8 bits
+    var tercer_octeto = parseInt(direccion_ip[2], 10).toString(2);
+    while (tercer_octeto.length < 8) {
+      tercer_octeto = '0' + tercer_octeto;
+    }
+
+    // Convertir cuarto octeto a binario y añadir ceros a la izquierda hasta que sea de 8 bits
+    var cuarto_octeto = parseInt(direccion_ip[3], 10).toString(2);
+    while (cuarto_octeto.length < 8) {
+      cuarto_octeto = '0' + cuarto_octeto;
+    }
+
+    var direccion_red = primer_octeto + segundo_octeto + tercer_octeto + cuarto_octeto;
+
+    var bits_host = 32 - datos.prefijo;
+
+    direccion_red = direccion_red.split('');
+
+    direccion_red.reverse();
+
+    for (var index = 0; index < bits_host; index++) {
+      direccion_red[index] = '0';
+    }
+
+    direccion_red.reverse();
+    direccion_red = direccion_red.join('');
+
+    // Poner un punto entre cada octeto
+    direccion_red = direccion_red.match(/.{1,8}/g);
+
+    // Convertir a decimal
+    var direccion_red_decimal = '';
+    for (index = 0; index < direccion_red.length; index++) {
+      direccion_red_decimal += parseInt(direccion_red[index], 2);
+      if (index < direccion_red.length - 1) {
+        direccion_red_decimal += '.';
+      }
+    }
+
+    return direccion_red_decimal;
+
+  }
+  
+  function calcularDireccionDeRedSubredes( ) {
+    
+    var direccion_red = datos.direccion_red.split('.');
+
+    if ( datos.prefijo <= 8 ) {
+      direccion_red[0] = parseInt(direccion_red[0], 10) + datos.salto_actual;
+    } else if ( datos.prefijo <= 16 ) {
+      direccion_red[1] = parseInt(direccion_red[1], 10) + datos.salto_actual;
+    } else if ( datos.prefijo <= 24 ) {
+      direccion_red[2] = parseInt(direccion_red[2], 10) + datos.salto_actual;
+    } else {
+      direccion_red[3] = parseInt(direccion_red[3], 10) + datos.salto_actual;
+    }
+
+    direccion_red = direccion_red.join('.');
+
+    return direccion_red;
+  }
+
+  // Calcular la primera direccion ip de la subred usando la direccion de red y el prefijo de la subred
+  function calcularPrimeraDireccionSubred( direccion_red, prefijo ) {
+    var direccion_red_octetos = direccion_red.split('.');
+
+    if ( prefijo >= 20 ) {
+      direccion_red_octetos[3] = parseInt(direccion_red_octetos[3], 10) + 1;
+    } else if ( prefijo >= 16 ) {
+      direccion_red_octetos[2] = parseInt(direccion_red_octetos[2], 10) + 1;
+    } else if ( prefijo >= 12 ) {
+      direccion_red_octetos[1] = parseInt(direccion_red_octetos[1], 10) + 1;
+    } else {
+      direccion_red_octetos[0] = parseInt(direccion_red_octetos[0], 10) + 1;
+    }
+
+    direccion_red_octetos = direccion_red_octetos.join('.');
+
+    return direccion_red_octetos;
+  }
+
+  function calcularWildcard(mascara) {
+    var wildcard = '0.0.0.0';
+
+    wildcard = wildcard.split('.');
+    mascara = mascara.split('.');
+
+    wildcard[0] = 255 - parseInt(mascara[0], 10);
+    wildcard[1] = 255 - parseInt(mascara[1], 10);
+    wildcard[2] = 255 - parseInt(mascara[2], 10);
+    wildcard[3] = 255 - parseInt(mascara[3], 10);
+
+    wildcard = wildcard.join('.');
+
+    console.log(wildcard);
+
+    return wildcard;
+  }
+
+  function calcularSubredes() {
+    ordenarSubredes();
+    datos.direccion_red = calcularDireccionDeRed();
+
+    datos.subredes.forEach(subred => {
+      subred.bits_host = calcularBitsHost(subred.hosts_solicitados);
+      subred.hosts_reservados = Math.pow(2, subred.bits_host) - 2;
+      subred.hosts_disponibles = subred.hosts_reservados - subred.hosts_solicitados;
+
+      subred.bits_subred = (32 - datos.prefijo) - subred.bits_host;
+
+      subred.direcciones.prefijo = datos.prefijo + subred.bits_subred;
+
+      subred.direcciones.mascara = convertirPrefijoAMascaraDecimal(subred.direcciones.prefijo);
+
+      subred.direcciones.direccion_red = calcularDireccionDeRedSubredes();
+
+      subred.salto = calcularSalto(subred.direcciones.mascara);
+
+      subred.direcciones.primera_ip = calcularPrimeraDireccionSubred(subred.direcciones.direccion_red, subred.direcciones.prefijo);
+
+      subred.direcciones.wildcard = calcularWildcard( subred.direcciones.mascara );
+
+    });
+
+    setCalculadoFinal(true);
+
+  }
+
+
   const handleCalcular = () => {
-    if (validar() && validarRedConHosts()) {
-      ordenarSubredes();
-      setCalculadoFinal(true);
+    if (validar()) {
+      calcularSubredes();
     } else {
       mostrarErrorDialogo(true);
     }
@@ -426,8 +606,9 @@ export default function App() {
                           <TableCell align="center">Subred</TableCell>
                           <TableCell align="center">Hosts solicitados</TableCell>
                           <TableCell align="center">Hosts asignados</TableCell>
-                          <TableCell align="center">Hosts disponibles</TableCell>
+                          <TableCell align="center">Hosts sin usar</TableCell>
                           <TableCell align="center">Dirección de red</TableCell>
+                          <TableCell align="center">Prefijo</TableCell>
                           <TableCell align="center">Primer host</TableCell>
                           <TableCell align="center">Último host</TableCell>
                           <TableCell align="center">Máscara</TableCell>
@@ -446,13 +627,16 @@ export default function App() {
                                 {subred.hosts_solicitados}
                               </TableCell>
                               <TableCell align="center">
+                                {subred.hosts_reservados}
+                              </TableCell>
+                              <TableCell align="center">
                                 {subred.hosts_disponibles}
                               </TableCell>
                               <TableCell align="center">
-                                {subred.hosts_libres}
+                                {subred.direcciones.direccion_red}
                               </TableCell>
                               <TableCell align="center">
-                                {subred.direcciones.direccion_red}
+                                {subred.direcciones.prefijo}
                               </TableCell>
                               <TableCell align="center">
                                 {subred.direcciones.primera_ip}
@@ -467,6 +651,11 @@ export default function App() {
                               <TableCell align="center">
                                 {subred.direcciones.broadcast}
                               </TableCell>
+
+                              <TableCell align="center">
+                                {subred.direcciones.wildcard}
+                              </TableCell>
+
                             </TableRow>
                           ))
                         }
