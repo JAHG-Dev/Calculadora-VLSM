@@ -1,4 +1,4 @@
-  # Este proyecto fue desarrollado popr JAHG Dev (Creare Club)
+  # Este proyecto fue desarrollado por JAHG Dev (Creare Club)
 
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
 
@@ -16,3 +16,6 @@ Abre [http://localhost:3000](http://localhost:3000) para verlo en el navegador.
 Compila el código en una carpeta `build`.\
 
 Para más información visite [https://jahg.dev/](https://jahg.dev/)
+
+
+Creado por [Creare Club](https://creare.club/)
