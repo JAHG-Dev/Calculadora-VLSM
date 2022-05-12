@@ -1,6 +1,6 @@
-import { Button, Container, Typography, Card, TextField, form, Grid, InputAdornment, Select, InputLabel, MenuItem, FormControl, Modal, TableContainer, Paper, Table, TableHead, TableBody, TableRow, TableCell } from '@mui/material';
+import { Button, Container, Typography, Card, TextField, Grid, Select, InputLabel, MenuItem, FormControl, Modal, TableContainer, Paper, Table, TableHead, TableBody, TableRow, TableCell, List, ListItem, ListItemText, } from '@mui/material';
 import { Box } from '@mui/system';
-import { useState, useContext, useEffect } from 'react';
+import { useState } from 'react';
 
 export default function App() {
 
@@ -20,6 +20,8 @@ export default function App() {
   const [calculado, iscalculado] = useState(false);
 
   const [calculadoFinal, setCalculadoFinal] = useState(false);
+
+  const [pasos, setPasos] = useState(false);
 
   var [datos, setdatos] = useState({
     ip: '192.168.1.0',
@@ -65,6 +67,10 @@ export default function App() {
       error: false,
       mensaje: 'La cantidad de subredes es correcta'
     }
+  });
+
+  var [mensajeFinal, setMensajeFinal] = useState({
+    mensajes: [],
   });
 
   const handleChange = (event) => {
@@ -134,6 +140,8 @@ export default function App() {
           }
         ]
       });
+
+      mensajeFinal.mensajes.push('Se verifica si la dirección IP es correcta. Deben ser 4 octetos, separados por un punto (.) y cada octeto debe ser un número entre 0 y 255');
       return false;
     }
     for (var i = 0; i < ip.length; i++) {
@@ -152,6 +160,8 @@ export default function App() {
   }
 
   function validarPrefijo() {
+    mensajeFinal.mensajes.push('Se verifica si el prefijo es correcto. Debe ser un número menor a 32 y mayor a 0');
+
     if (datos.prefijo < 1 || datos.prefijo > 32 || isNaN(datos.prefijo)) {
       seterror({
         ...error,
@@ -166,6 +176,8 @@ export default function App() {
   }
 
   function validarSubredes() {
+    mensajeFinal.mensajes.push('Se verifica si la cantidad de subredes es correcta. Debe ser un número mayor a 0');
+
     if (datos.subredes_cantidad < 1 || datos.subredes_cantidad > 32 || isNaN(datos.subredes_cantidad)) {
       seterror({
         ...error,
@@ -196,7 +208,14 @@ export default function App() {
     }
   };
 
+
+  const handleMostrarMensajes = () => {
+    pasos ? setPasos(false) : setPasos(true);
+  }
+
   function ordenarSubredes() {
+    mensajeFinal.mensajes.push('Se ordenan las subredes de acuerdo a la cantidad de hosts solicitados. Si hay una subred con más hosts solicitados, se asignan primero.');
+
     var subredes = datos.subredes;
     subredes.sort(function (a, b) {
       return b.hosts_solicitados - a.hosts_solicitados;
@@ -206,6 +225,20 @@ export default function App() {
       subredes: subredes
     });
   }
+
+  function mensajesFinales() {
+    mensajeFinal.mensajes.push('Se calcula el número de bits por host. Se calcula de la siguiente manera:  32 - prefijo');
+    mensajeFinal.mensajes.push('Se convierte el prefijo a una máscara decimal. Se realiza colocando los bits correspondientes al prefijo en "1" y el resto (hasta llegar a 32) en 0');
+    mensajeFinal.mensajes.push('Se calcula el salto. Se calcula de la siguiente manera:  256 - último octeto de la máscara');
+    mensajeFinal.mensajes.push('Se calcula la dirección de red general. Para este paso se utiliza el prefijo y la dirección IP. Se cuenta con base al prefijo los primeros bits de la dirección IP, y estos se mantienen y no son manipulados, y los demás se rellenan con ceros.');
+    mensajeFinal.mensajes.push('Se calcula la dirección de red de las subredes. Para este paso se utiliza el método anterior, utilizando el prefijo de cada subred');
+    mensajeFinal.mensajes.push('Se calcula la primera dirección de la subred. Sólo se debe sumar un 1 al último octeto de la dirección de red.');
+    mensajeFinal.mensajes.push('Se calcula la última dirección de la subred. Se logra sumar el salto-1 a la dirección de red de la subred, y se resta uno al último octeto de la dirección de red.');
+    mensajeFinal.mensajes.push('Se calcula la dirección de broadcast de las subredes. Se utiliza la última dirección IP + 1');
+    mensajeFinal.mensajes.push('Se calcula el wildcard. Para este paso se utiliza la máscara de la subred. Básicamente es el inverso de la máscara. Por lo que a cada octeto, considerando que 255 es el valor máximo, se le resta el valor del octeto correspondiente de cada máscara.');
+  }
+    
+
 
   function calcularBitsHost(hosts) {
 
@@ -236,7 +269,6 @@ export default function App() {
         mascara_decimal += '.';
       }
     }
-
     return mascara_decimal;
   }
 
@@ -309,7 +341,6 @@ export default function App() {
         direccion_red_decimal += '.';
       }
     }
-
     return direccion_red_decimal;
 
   }
@@ -329,6 +360,7 @@ export default function App() {
     }
 
     direccion_red = direccion_red.join('.');
+
 
     return direccion_red;
   }
@@ -365,9 +397,101 @@ export default function App() {
 
     wildcard = wildcard.join('.');
 
-    console.log(wildcard);
-
     return wildcard;
+  }
+
+  
+  function calcularUltimaDireccionSubred( direccionRed, prefijo, salto, hosts ) {
+    var direccion_red_octetos = direccionRed.split('.');
+
+    if ( parseInt( prefijo, 10 ) >= 20 ) {
+      direccion_red_octetos[2] = parseInt(direccion_red_octetos[2], 10) + (salto - 1);
+
+      if( parseInt(hosts, 10) >= 253 ) {
+        direccion_red_octetos[3] = parseInt(direccion_red_octetos[3], 10) + 254;
+      } else {
+        direccion_red_octetos[3] = parseInt(direccion_red_octetos[3], 10) + parseInt(hosts, 10) - 1;
+      }
+
+    } else if ( parseInt( prefijo, 10 ) >= 16 ) {
+      direccion_red_octetos[1] = parseInt(direccion_red_octetos[1], 10) + (salto - 1);
+
+      if( parseInt(hosts, 10) >= 253 ) {
+        direccion_red_octetos[2] = parseInt(direccion_red_octetos[2], 10) + 254;
+      } else {
+        direccion_red_octetos[2] = parseInt(direccion_red_octetos[2], 10) + parseInt(hosts, 10) - 1;
+      }
+
+    } else if ( parseInt( prefijo, 10 ) >= 12 ) {
+      direccion_red_octetos[0] = parseInt(direccion_red_octetos[0], 10) + (salto - 1);
+
+      if( parseInt(hosts, 10) >= 253 ) {
+        direccion_red_octetos[1] = parseInt(direccion_red_octetos[1], 10) + 254;
+      } else {
+        direccion_red_octetos[1] = parseInt(direccion_red_octetos[1], 10) + parseInt(hosts, 10) - 1;
+      }
+
+    } else {
+      direccion_red_octetos[0] = parseInt(direccion_red_octetos[0], 10) + (salto - 1);
+
+      if( parseInt(hosts, 10) >= 253 ) {
+        direccion_red_octetos[0] = parseInt(direccion_red_octetos[0], 10) + 254;
+      } else {
+        direccion_red_octetos[0] = parseInt(direccion_red_octetos[0], 10) + parseInt(hosts, 10) - 1;
+      }
+    }
+
+    direccion_red_octetos = direccion_red_octetos.join('.');
+
+    return direccion_red_octetos;
+
+  }
+
+  function calcularDireccionDeBroadcast( direccionRed, prefijo, salto, hosts ) {
+
+    var direccion_red_octetos = direccionRed.split('.');
+
+    if ( parseInt( prefijo, 10 ) >= 20 ) {
+      direccion_red_octetos[2] = parseInt(direccion_red_octetos[2], 10) + (salto - 1);
+
+      if( parseInt(hosts, 10) >= 253 ) {
+        direccion_red_octetos[3] = parseInt(direccion_red_octetos[3], 10) + 255;
+      } else {
+        direccion_red_octetos[3] = parseInt(direccion_red_octetos[3], 10) + parseInt(hosts, 10);
+      }
+
+    } else if ( parseInt( prefijo, 10 ) >= 16 ) {
+      direccion_red_octetos[1] = parseInt(direccion_red_octetos[1], 10) + (salto - 1);
+
+      if( parseInt(hosts, 10) >= 253 ) {
+        direccion_red_octetos[2] = parseInt(direccion_red_octetos[2], 10) + 255;
+      } else {
+        direccion_red_octetos[2] = parseInt(direccion_red_octetos[2], 10) + parseInt(hosts, 10);
+      }
+
+    } else if ( parseInt( prefijo, 10 ) >= 12 ) {
+      direccion_red_octetos[0] = parseInt(direccion_red_octetos[0], 10) + (salto - 1);
+
+      if( parseInt(hosts, 10) >= 253 ) {
+        direccion_red_octetos[1] = parseInt(direccion_red_octetos[1], 10) + 255;
+      } else {
+        direccion_red_octetos[1] = parseInt(direccion_red_octetos[1], 10) + parseInt(hosts, 10);
+      }
+
+    } else {
+      direccion_red_octetos[0] = parseInt(direccion_red_octetos[0], 10) + (salto - 1);
+
+      if( parseInt(hosts, 10) >= 253 ) {
+        direccion_red_octetos[0] = parseInt(direccion_red_octetos[0], 10) + 255;
+      } else {
+        direccion_red_octetos[0] = parseInt(direccion_red_octetos[0], 10) + parseInt(hosts, 10);
+      }
+    }
+
+    direccion_red_octetos = direccion_red_octetos.join('.');
+
+    return direccion_red_octetos;
+
   }
 
   function calcularSubredes() {
@@ -391,9 +515,15 @@ export default function App() {
 
       subred.direcciones.primera_ip = calcularPrimeraDireccionSubred(subred.direcciones.direccion_red, subred.direcciones.prefijo);
 
+      subred.direcciones.ultima_ip = calcularUltimaDireccionSubred(subred.direcciones.direccion_red, subred.direcciones.prefijo, subred.salto, subred.hosts_reservados);
+
       subred.direcciones.wildcard = calcularWildcard( subred.direcciones.mascara );
 
+      subred.direcciones.broadcast = calcularDireccionDeBroadcast( subred.direcciones.direccion_red, subred.direcciones.prefijo, subred.salto, subred.hosts_reservados );
+
     });
+
+    mensajesFinales();
 
     setCalculadoFinal(true);
 
@@ -421,7 +551,7 @@ export default function App() {
           </Grid>
 
           <Grid item xs={12}>
-            <Typography variant="h3" align="center" style={{ marginBottom: '2em' }}>
+            <Typography variant="h3" align="center" style={{ marginBottom: '1em' }}>
               Calculadora de subredes VSLM
             </Typography>
 
@@ -453,7 +583,7 @@ export default function App() {
             </Grid>
           </Grid>
 
-          <Grid container style={{ marginBottom: '1rem', width: '100%', alignItems: 'center', justifyContent: 'center', display: 'flex' }}>
+          <Grid container style={{ marginBottom: '3rem', width: '100%', alignItems: 'center', justifyContent: 'center', display: 'flex' }}>
             <Button variant="contained" color="secondary" href="#calculadora" style={{ marginTop: '1rem' }}>
               Ir a la calculadora
             </Button>
@@ -717,8 +847,45 @@ export default function App() {
             </Card>
           </>
         }
-
       </Container>
+
+      {
+        pasos &&
+        <>
+          <Card style={{ padding: '20px', marginTop: '20px' }} alignItems="center" justifyContent="center">
+            <Grid item xs={12} md={6}>
+              <Typography sx={{ mt: 4, mb: 2 }} variant="h6" component="div">
+                Pasos generales
+              </Typography>
+                <List dense={true}>
+                    {
+                      mensajeFinal.mensajes.map((mensaje, index) => (
+                        <ListItem key={index}>
+                          <ListItemText
+                            primary={mensaje}
+                          />
+                        </ListItem>
+                      ))
+                    }
+                </List>
+            </Grid>
+          </Card>
+        </>
+      }
+
+
+        {
+          calculadoFinal &&
+          <>
+            <Card style={{ padding: '20px', margin: '20px' }}  align="center">
+              <Button variant="contained" color="secondary" size="large" style={{ width: '35%', marginTop: '20px' }} onClick={ handleMostrarMensajes }>
+                {
+                  pasos ? 'Ocultar pasos' : 'Mostrar pasos'
+                }
+              </Button>
+            </Card>
+          </>
+        }
 
       <Modal
         open={ErrorDialogo}
