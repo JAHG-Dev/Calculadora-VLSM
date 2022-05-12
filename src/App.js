@@ -411,8 +411,58 @@ export default function App() {
   return (
     <>
       <Container alignItems="center" justifyContent="center" maxWidth="xl">
-        <Typography variant="h1" gutterBottom align="center" color="white" style={{ marginTop: '20px', marginBottom: '20px', fontSize: '40px' }}>
-          Calculadora VLSM
+
+        <Grid container spacing={3} style={{ marginTop: '1rem', marginBottom: '1rem', height: '100vh' }}>
+          <Grid item xs={6}>
+            <img src='https://www.uaeh.edu.mx/imagen/imagenes/2020/recursos/uaeh.png' alt="UAEH" height="70px" align="left" />
+          </Grid>
+          <Grid item xs={6}>
+            <img src='https://www.uaeh.edu.mx/campus/icbi/imagenes/recursos/1.png' alt="UAEH" height="60px" align="right" />
+          </Grid>
+
+          <Grid item xs={12}>
+            <Typography variant="h3" align="center" style={{ marginBottom: '2em' }}>
+              Calculadora de subredes VSLM
+            </Typography>
+
+            <Typography variant="h4" align="center" style={{  marginBottom: '1rem' }}>
+              Comunicaciones en redes | 5°3
+            </Typography>
+
+            <Typography variant="h5" align="center" style={{  marginBottom: '2rem' }}>
+              Maestra: Vanessa Esther Ureña Medina
+              <br></br>
+            </Typography>
+
+            <Typography variant="h5" align="center">
+              Equipo:
+            </Typography>
+
+            <Grid container style={{ marginTop: '1rem', width: '100%', alignItems: 'center', justifyContent: 'center', display: 'flex' }}>
+              <Typography variant="h6" align="center" style={{  marginBottom: '1rem'}}>
+                Espinosa Osorio Daniel Moisés 
+                <br></br>
+                Hernández Cruz Josué de Jesús
+                <br></br>
+                Hernández Gutiérrez José Angel
+                <br></br>
+                Jiménez Jarillo Bryan
+                <br></br>
+                Marquez Barrera Natalie Montserrat
+              </Typography>
+            </Grid>
+          </Grid>
+
+          <Grid container style={{ marginBottom: '1rem', width: '100%', alignItems: 'center', justifyContent: 'center', display: 'flex' }}>
+            <Button variant="contained" color="secondary" href="#calculadora" style={{ marginTop: '1rem' }}>
+              Ir a la calculadora
+            </Button>
+          </Grid>
+        </Grid>
+              
+
+        <Typography variant="h1" gutterBottom align="center" color="white" style={{ marginTop: '20px', marginBottom: '20px', fontSize: '40px' }} id="calculadora">
+          Calculadora de subneteo VLSM
         </Typography>
 
         <Card style={{ padding: '20px' }} alignItems="center" justifyContent="center">
