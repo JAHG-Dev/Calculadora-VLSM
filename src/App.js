@@ -741,8 +741,10 @@ export default function App() {
                                   value={subred.hosts_solicitados}
                                   type="number"
                                   inputProps={{
-                                    min: 1
+                                    min: 1,
+                                    max: 950,
                                   }}
+                                  helperText='Máximo 950'
                                   onChange={handleChangeSubredHostsSolicitados}
                                 />
                               </TableCell>
